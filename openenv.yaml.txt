@@ -1,0 +1,15 @@
+name: task-scheduler-env
+description: RL and DQN based scheduling environment
+
+endpoints:
+  reset: /reset
+  step: /step
+  state: /state
+
+actions:
+  type: integer
+  description: task index (0-3)
+
+observation:
+  type: vector
+  size: 9

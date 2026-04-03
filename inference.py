@@ -1,66 +1,49 @@
-from env import TaskEnv
-from agent import choose_action, update_q
-from dqn_agent import DQNAgent
-from grader import grade_easy, grade_medium, grade_hard
+import os
+import requests
 
-def run_q_learning(level):
-    env = TaskEnv(level)
+# REQUIRED ENV VARIABLES
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+MODEL_NAME = os.getenv("MODEL_NAME", "dqn")
 
-    for _ in range(50):
-        state = env.reset()
-        while True:
-            action = choose_action(state, env.active_tasks, 0.3)
-            next_state, reward, done = env.step(action)
-            update_q(state, action, reward, next_state, env.active_tasks)
-            state = next_state
-            if done:
+def run_episode():
+    total_reward = 0
+
+    # reset
+    res = requests.get(f"{API_BASE_URL}/reset")
+    data = res.json()
+    state = data["state"]
+    done = False
+
+    while not done:
+        # simple policy (greedy)
+        action = 0
+        for i in range(4):
+            if state[1 + i*2] != 0:
+                action = i
                 break
 
-    state = env.reset()
-    total = 0
-    while True:
-        action = choose_action(state, env.active_tasks, 0)
-        state, reward, done = env.step(action)
-        total += reward
-        if done:
-            break
-    return total
+        res = requests.get(f"{API_BASE_URL}/step", params={"action": action})
+        data = res.json()
 
-def run_dqn(level):
-    agent = DQNAgent()
+        state = data["state"]
+        total_reward += data["reward"]
+        done = data["done"]
 
-    for _ in range(50):
-        env = TaskEnv(level)
-        state = env.reset()
-        while True:
-            action = agent.choose_action(state, env.active_tasks, 0.3)
-            next_state, reward, done = env.step(action)
-            agent.train_step(state, action, reward, next_state, done, env.active_tasks)
-            state = next_state
-            if done:
-                break
+    return total_reward
 
-    env = TaskEnv(level)
-    state = env.reset()
-    total = 0
-    while True:
-        action = agent.choose_action(state, env.active_tasks, 0)
-        state, reward, done = env.step(action)
-        total += reward
-        if done:
-            break
-    return total
+
+def main():
+    scores = []
+
+    for _ in range(5):
+        score = run_episode()
+        scores.append(score)
+
+    avg_score = sum(scores) / len(scores)
+
+    print("Scores:", scores)
+    print("Average Score:", avg_score)
+
 
 if __name__ == "__main__":
-    for level in ["easy", "medium", "hard"]:
-        q_score = run_q_learning(level)
-        dqn_score = run_dqn(level)
-
-        if level == "easy":
-            grade = grade_easy(q_score)
-        elif level == "medium":
-            grade = grade_medium(q_score)
-        else:
-            grade = grade_hard(q_score)
-
-        print(f"{level} | Q: {q_score:.2f} | DQN: {dqn_score:.2f} | Grade: {grade:.2f}")
+    main()

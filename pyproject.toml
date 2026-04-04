@@ -1,0 +1,20 @@
+[project]
+name = "task-scheduler-env"
+version = "0.1.0"
+description = "RL-based task scheduling environment with Q-learning and DQN"
+authors = [
+    { name = "Bathini Rohini" }
+]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "numpy"
+]
+
+[tool.setuptools]
+packages = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,19 @@
+[project]
+name = "task-scheduler-env"
+version = "0.1.0"
+description = "RL Task Scheduler"
+authors = [{ name = "Bathini Rohini" }]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "numpy",
+    "openenv>=0.2.0"
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

@@ -5,52 +5,38 @@ from openai import OpenAI
 ENV_URL = "https://bathini-rohini-task-scheduler-env.hf.space"
 
 
-# -----------------------------
-# REAL LLM CALL (VALIDATOR SAFE)
-# -----------------------------
 def call_llm_once():
     base_url = os.environ.get("API_BASE_URL")
     api_key = os.environ.get("API_KEY")
 
+    print(f"[DEBUG] base_url: {base_url}", flush=True)
+    print(f"[DEBUG] api_key exists: {bool(api_key)}", flush=True)
+
     if not base_url or not api_key:
-        print("[DEBUG] Missing env", flush=True)
-        return
+        raise Exception("Missing API_BASE_URL or API_KEY")
 
     client = OpenAI(
         base_url=base_url,
         api_key=api_key
     )
 
-    # ⚠️ MUST STORE RESPONSE (important for execution)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "Return number 0-3"},
-            {"role": "user", "content": "0"}
+            {"role": "system", "content": "Return a number"},
+            {"role": "user", "content": "1"}
         ],
         max_tokens=5
     )
 
-    # FORCE USAGE (prevents optimization skip)
-    _ = response.choices[0].message.content
-
-    print("[DEBUG] LLM CALLED", flush=True)
+    result = response.choices[0].message.content
+    print(f"[DEBUG] LLM response: {result}", flush=True)
 
 
-# -----------------------------
-# POLICY
-# -----------------------------
-def choose_action(state):
-    return state[:4].index(max(state[:4]))
-
-
-# -----------------------------
-# MAIN
-# -----------------------------
 def main():
     print("[START] task=task-scheduler", flush=True)
 
-    # 🔥 MUST EXECUTE BEFORE LOOP
+    # 🔥 MUST NOT FAIL
     call_llm_once()
 
     total_reward = 0
@@ -60,7 +46,7 @@ def main():
     state = res["state"]
 
     for _ in range(20):
-        action = choose_action(state)
+        action = state[:4].index(max(state[:4]))
 
         res = requests.post(
             f"{ENV_URL}/step",

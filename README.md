@@ -1,5 +1,3 @@
----
-title: RL Task Scheduler
-sdk: gradio
-app_file: ui.py
----
+# RL Task Scheduler
+
+OpenEnv-compatible task scheduling environment using RL + DQN.

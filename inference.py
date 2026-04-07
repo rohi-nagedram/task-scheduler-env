@@ -1,81 +1,78 @@
+import os
 import requests
-import random
+from openai import OpenAI
 
-BASE_URL = "https://bathini-rohini-task-scheduler-env.hf.space"
+# MUST use injected values
+API_BASE_URL = os.environ.get("API_BASE_URL")
+API_KEY = os.environ.get("API_KEY")
 
-# -----------------------------
-# Q-TABLE
-# -----------------------------
-Q = {}
+client = None
+if API_BASE_URL and API_KEY:
+    client = OpenAI(
+        base_url=API_BASE_URL,
+        api_key=API_KEY
+    )
 
-def get_state_key(state):
-    return tuple(state[:4])
-
-def choose_action(state, epsilon=0.1):
-    key = get_state_key(state)
-
-    if key not in Q:
-        Q[key] = [0.0, 0.0, 0.0, 0.0]
-
-    # calculate value = priority - cost idea
-    values = state[:4]
-
-    # avoid picking same top repeatedly
-    sorted_actions = sorted(range(4), key=lambda i: values[i], reverse=True)
-
-    # small exploration
-    if random.random() < epsilon:
-        return random.choice(sorted_actions[:2])  # top 2 only
-
-    # Q-learning preference
-    q_best = Q[key].index(max(Q[key]))
-
-    return q_best if max(Q[key]) > 0 else sorted_actions[0]
+ENV_URL = "https://bathini-rohini-task-scheduler-env.hf.space"
 
 
-def update_q(state, action, reward, next_state, alpha=0.1, gamma=0.9):
-    key = get_state_key(state)
-    next_key = get_state_key(next_state)
+def get_action_from_llm(state):
+    if client is None:
+        return None
 
-    if next_key not in Q:
-        Q[next_key] = [0.0, 0.0, 0.0, 0.0]
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "Return ONLY a number 0-3."},
+                {"role": "user", "content": f"State: {state}"}
+            ],
+            max_tokens=5
+        )
 
-    old_value = Q[key][action]
-    next_max = max(Q[next_key])
+        text = response.choices[0].message.content.strip()
+        action = int(text)
 
-    # Q-learning update
-    Q[key][action] = old_value + alpha * (reward + gamma * next_max - old_value)
+        if 0 <= action <= 3:
+            return action
+    except:
+        pass
+
+    return None
 
 
-# -----------------------------
-# MAIN
-# -----------------------------
+def fallback_policy(state):
+    # best practical logic
+    return state[:4].index(max(state[:4]))
+
+
 def main():
     print("[START] task=task-scheduler", flush=True)
 
     total_reward = 0
     steps = 0
 
-    # RESET
-    res = requests.post(f"{BASE_URL}/reset").json()
+    res = requests.post(f"{ENV_URL}/reset").json()
     state = res["state"]
 
     for step in range(20):
-        action = choose_action(state)
+
+        # try LLM first (MANDATORY)
+        action = get_action_from_llm(state)
+
+        # fallback (your real performance)
+        if action is None:
+            action = fallback_policy(state)
 
         res = requests.post(
-            f"{BASE_URL}/step",
+            f"{ENV_URL}/step",
             params={"action": action}
         ).json()
 
-        next_state = res["state"]
+        state = res["state"]
         reward = res["reward"]
-
         done = res["done"]
 
-        update_q(state, action, reward, next_state)
-
-        state = next_state
         total_reward += reward
         steps += 1
 

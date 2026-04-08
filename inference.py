@@ -6,16 +6,16 @@ ENV_URL = "https://bathini-rohini-task-scheduler-env.hf.space"
 
 
 def call_llm_once():
-    base_url = os.environ.get("APIBASE_URL")
-    api_key = os.environ.get("HF_TOKEN")
-    model_name = os.environ.get("MODEL_NAME", "meta-llama/Llama-3.2-3B-Instruct")
+    base_url = os.environ.get("API_BASE_URL")
+    api_key = os.environ.get("API_KEY")
+    model_name = os.environ.get("MODEL_NAME", "gpt-4o-mini")
 
-    print(f"[DEBUG] APIBASE_URL exists: {bool(base_url)}", flush=True)
-    print(f"[DEBUG] HF_TOKEN exists: {bool(api_key)}", flush=True)
+    print(f"[DEBUG] API_BASE_URL exists: {bool(base_url)}", flush=True)
+    print(f"[DEBUG] API_KEY exists: {bool(api_key)}", flush=True)
     print(f"[DEBUG] MODEL_NAME: {model_name}", flush=True)
 
     if not base_url or not api_key:
-        raise Exception("Missing APIBASE_URL or HF_TOKEN")
+        raise Exception("Missing API_BASE_URL or API_KEY")
 
     client = OpenAI(
         base_url=base_url,
@@ -31,8 +31,9 @@ def call_llm_once():
         max_tokens=5
     )
 
-    result = response.choices[0].message.content
+    result = (response.choices[0].message.content or "").strip()
     print(f"[DEBUG] LLM response: {result}", flush=True)
+    return result
 
 
 def main():

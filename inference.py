@@ -1,58 +1,55 @@
 import os
 import requests
-from openai import OpenAI
 
-# ✅ DO NOT CHANGE THIS
 ENV_URL = "https://bathini-rohini-task-scheduler-env.hf.space"
 
 
 # -----------------------------
-# FORCE LLM CALL (DETECTABLE)
+# LLM VIA PROXY (DIRECT CALL)
 # -----------------------------
 def get_action_from_llm(state):
     base_url = os.environ.get("API_BASE_URL")
     api_key = os.environ.get("API_KEY")
 
-    # ❌ HARD FAIL (so validator sees issue clearly)
     if not base_url or not api_key:
-        raise Exception("API_BASE_URL or API_KEY missing")
+        raise Exception("Missing API_BASE_URL or API_KEY")
 
-    client = OpenAI(
-        base_url=base_url,
-        api_key=api_key
-    )
+    url = f"{base_url}/v1/chat/completions"
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a task scheduler agent. Choose best action index (0-3)."
-            },
-            {
-                "role": "user",
-                "content": f"State: {state}. Return ONLY a number between 0 and 3."
-            }
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [
+            {"role": "system", "content": "Select best task index (0-3)."},
+            {"role": "user", "content": f"State: {state}. Return only a number."}
         ],
-        max_tokens=5
-    )
+        "max_tokens": 5
+    }
 
-    text = response.choices[0].message.content.strip()
+    response = requests.post(url, headers=headers, json=payload)
+    response.raise_for_status()
+
+    data = response.json()
+    text = data["choices"][0]["message"]["content"].strip()
 
     try:
         action = int(text)
     except:
-        action = 0  # fallback ONLY after LLM call
+        action = 0
 
     return max(0, min(3, action))
 
 
 # -----------------------------
-# MAIN EXECUTION
+# MAIN
 # -----------------------------
 def main():
     print("[START] task=task-scheduler", flush=True)
-    print("VERSION: FINAL_PROXY_V2", flush=True)  # 🔥 DEPLOYMENT CHECK
+    print("VERSION: FINAL_DIRECT_PROXY", flush=True)
 
     total_reward = 0
     steps = 0
@@ -62,9 +59,9 @@ def main():
     res.raise_for_status()
     state = res.json()["state"]
 
-    # RUN LOOP
+    # LOOP
     for _ in range(20):
-        # 🔥 LLM MUST RUN EVERY STEP
+        # 🔥 LLM decides action EVERY STEP
         action = get_action_from_llm(state)
 
         res = requests.post(
